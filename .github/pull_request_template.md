@@ -16,13 +16,13 @@
 - [ ] Needs a redeploy: `cd /srv/<slug> && make deploy` (or `make remote-deploy`)
 - [ ] New/changed env var or secret — update `.env` on the box (see `.env.example`)
 - [ ] Port or domain change — that is **central ingress**: open a matching PR in
-      [`mmsge/hetzner-server`](https://github.com/mmsge/hetzner-server) (Caddyfile +
+      [`mmsge/naustet-server`](https://github.com/mmsge/naustet-server) (Caddyfile +
       service registry). Do **not** add Caddy/TLS/routing to this repo.
 - [ ] Memory footprint changed — still comfortably within `mem_limit` (box is 3.7 GB / 2 vCPU)?
 
 ## Verification
 
-<!-- How did you test this? e.g. `make verify` output, `curl -sI https://__SLUG__.msge.no`,
+<!-- How did you test this? e.g. `make verify` output, `curl -sI https://mastobots.skvip.lol`,
      manual steps, screenshots. Anything that shows it actually works — static/Podman
      services differ from the Node/Python norm, so describe what fits. -->
 
@@ -47,6 +47,6 @@
 - [ ] `/healthz` route and the Compose `healthcheck:` block are intact
 - [ ] `mem_limit` set; port bound to `172.18.0.1:PORT` or `0.0.0.0:PORT` — never `127.0.0.1`
 - [ ] Compose project name still pinned (`name: <slug>`) so a dir rename can't orphan volumes
-- [ ] Central ingress untouched here (TLS/routing/domain live in `mmsge/hetzner-server`)
+- [ ] Central ingress untouched here (TLS/routing/domain live in `mmsge/naustet-server`)
 - [ ] `robots.txt` + `sitemap.xml` still served — absolute URLs, correct content-types,
       baked into the image, reachable even if the app is auth-gated

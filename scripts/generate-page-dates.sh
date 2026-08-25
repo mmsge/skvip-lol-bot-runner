@@ -10,7 +10,7 @@
 # created  = author date of the oldest commit in the repo
 # modified = author date of the newest commit
 #
-# Box-wide convention: hetzner-server ADR 0015 / msge-no ADR 0004. NOTE: a
+# Box-wide convention: naustet-server ADR 0015 / msge-no ADR 0004. NOTE: a
 # shallow clone collapses both onto the newest commit; use fetch-depth: 0 in CI
 # and a full clone on the box.
 set -eu

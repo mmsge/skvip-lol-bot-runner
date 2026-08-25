@@ -1,0 +1,11 @@
+.git
+.github
+docs
+test
+dryrun
+node_modules
+*.log
+.env
+README.md
+CLAUDE.md
+Makefile

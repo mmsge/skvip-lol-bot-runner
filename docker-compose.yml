@@ -1,20 +1,36 @@
-# Compliant service skeleton for the Hetzner box.
-# Replace __SLUG__ / __PORT__ (or let the MCP `scaffold_service` tool fill them).
-name: __SLUG__            # pin the Compose project name — a dir rename can't orphan named volumes
+# mastobots — a house for Mastodon robots. Repo: mmsge/skvip-lol-bot-runner.
+name: mastobots            # pin the Compose project name — a dir rename can't orphan named volumes
 
 services:
-  __SLUG__:
+  mastobots:
     build: .
     restart: unless-stopped
     mem_limit: 256m        # the box is small (3.7 GB / 2 vCPU) — always cap memory
     # Publish where central Caddy can dial it: the bridge gateway 172.18.0.1:PORT
     # (kept off the public interface) or 0.0.0.0:PORT — never 127.0.0.1.
     ports:
-      - "172.18.0.1:__PORT__:8080"
-    # env_file: .env       # uncomment if the service needs secrets (see .env.example)
+      - "172.18.0.1:4010:8080"
+    env_file: .env         # MASTODON tokens + per-bot config (see .env.example)
+    volumes:
+      # The seen-store. Losing it means every bot re-marks the current corpus as
+      # seen on next boot (BACKFILL=0), so nothing double-posts — but the volume
+      # is what keeps that from happening at all.
+      - mastobots-data:/app/data
+    # Cap the container log. The runtime is the transport for the central `logg`
+    # service (logs.msge.no), so this file IS part of the logging pipeline — and
+    # without these options the json-file driver never rotates. The product
+    # max-size x max-file is also how much output survives a logg outage.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s   # grace while the app boots before failures count
+
+volumes:
+  mastobots-data:

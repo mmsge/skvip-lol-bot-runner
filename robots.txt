@@ -1,0 +1,8 @@
+# robots.txt for https://mastobots.skvip.lol/
+#
+# A public status site for the robots living here, plus the RSS feeds they
+# publish on behalf of sources that have none. Everything is meant to be found.
+User-agent: *
+Allow: /
+
+Sitemap: https://mastobots.skvip.lol/sitemap.xml

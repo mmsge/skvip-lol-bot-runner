@@ -3,3 +3,6 @@ node_modules/
 *.log
 # Regenerated at deploy by scripts/generate-page-dates.sh
 page-dates.json
+# Written by `make dryrun` — composed posts, deliberately not in the container
+# log and deliberately not committed (ADR 0008).
+dryrun/
