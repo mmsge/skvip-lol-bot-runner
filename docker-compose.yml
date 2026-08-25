@@ -1,0 +1,20 @@
+# Compliant service skeleton for the Hetzner box.
+# Replace __SLUG__ / __PORT__ (or let the MCP `scaffold_service` tool fill them).
+name: __SLUG__            # pin the Compose project name — a dir rename can't orphan named volumes
+
+services:
+  __SLUG__:
+    build: .
+    restart: unless-stopped
+    mem_limit: 256m        # the box is small (3.7 GB / 2 vCPU) — always cap memory
+    # Publish where central Caddy can dial it: the bridge gateway 172.18.0.1:PORT
+    # (kept off the public interface) or 0.0.0.0:PORT — never 127.0.0.1.
+    ports:
+      - "172.18.0.1:__PORT__:8080"
+    # env_file: .env       # uncomment if the service needs secrets (see .env.example)
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s   # grace while the app boots before failures count

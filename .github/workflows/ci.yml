@@ -1,0 +1,49 @@
+# Skeleton smoke test — deliberately placeholder-proof: it runs `node server.js`
+# directly (no compose, no __PORT__), so it passes both in this template repo and
+# in every service scaffolded from it. Extend it as the real app grows.
+name: CI
+
+# push only on the default branch — PRs cover feature branches, so a branch
+# push doesn't double-run the job.
+on:
+  push:
+    branches: [hovud]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history — the page dates are derived from git log; a shallow
+          # checkout collapses created/modified onto the newest commit.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Syntax check
+        run: node --check server.js
+
+      - name: Generate page dates
+        run: |
+          ./scripts/generate-page-dates.sh
+          cat page-dates.json
+          node -e "const d=require('./page-dates.json'); if(!d.created||!d.modified) process.exit(1)"
+
+      - name: Boot + smoke test (healthz, page-dates metadata, 304)
+        run: |
+          node server.js &
+          sleep 2
+          curl -fsS http://127.0.0.1:8080/healthz | grep -qx ok
+          page=$(curl -fsS http://127.0.0.1:8080/)
+          echo "$page" | grep -q 'article:published_time'
+          echo "$page" | grep -q 'article:modified_time'
+          echo "$page" | grep -q '"dateModified"'
+          lm=$(curl -fsSI http://127.0.0.1:8080/ | tr -d '\r' | sed -n 's/^[Ll]ast-[Mm]odified: //p')
+          test -n "$lm"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "If-Modified-Since: $lm" http://127.0.0.1:8080/)
+          test "$code" = "304"
+          kill %1
