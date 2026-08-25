@@ -1,6 +1,6 @@
-# Skeleton smoke test — deliberately placeholder-proof: it runs `node server.js`
-# directly (no compose, no __PORT__), so it passes both in this template repo and
-# in every service scaffolded from it. Extend it as the real app grows.
+# CI for mastobots. No network is needed: the tests run against fixtures
+# captured from the live dataset, and the smoke test boots the server with
+# DRY_RUN=1 against a temporary data directory.
 name: CI
 
 # push only on the default branch — PRs cover feature branches, so a branch
@@ -11,7 +11,7 @@ on:
   pull_request:
 
 jobs:
-  smoke:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,8 +24,25 @@ jobs:
         with:
           node-version: 22
 
+      # There is nothing to install: the service has zero runtime dependencies
+      # on purpose. If this ever needs `npm ci`, that is a decision to make
+      # deliberately, not a step to add quietly.
+      - name: No dependency tree
+        run: |
+          test ! -f package-lock.json
+          node -e "const p=require('./package.json'); if(p.dependencies) process.exit(1)"
+
       - name: Syntax check
-        run: node --check server.js
+        run: |
+          for f in server.js logg.js lib/*.js bots/*.js bin/*.js; do node --check "$f"; done
+
+      - name: Unit tests
+        # LOGG_STRICT makes the logging guards throw rather than warn, so a line
+        # carrying something the convention forbids fails here instead of
+        # showing up as a redaction hit at logs.msge.no/etterleving.
+        env:
+          LOGG_STRICT: "1"
+        run: node --test 'test/*.test.js'
 
       - name: Generate page dates
         run: |
@@ -33,17 +50,68 @@ jobs:
           cat page-dates.json
           node -e "const d=require('./page-dates.json'); if(!d.created||!d.modified) process.exit(1)"
 
-      - name: Boot + smoke test (healthz, page-dates metadata, 304)
+      - name: Boot + smoke test
+        env:
+          DRY_RUN: "1"
+          PORT: "8080"
+          DATA_DIR: "/tmp/mastobots-ci"
+          PUBLIC_BASE_URL: "https://mastobots.skvip.lol"
         run: |
+          mkdir -p /tmp/mastobots-ci
           node server.js &
-          sleep 2
+          for i in $(seq 1 40); do
+            curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1 && break
+            sleep 0.25
+          done
+
           curl -fsS http://127.0.0.1:8080/healthz | grep -qx ok
+
           page=$(curl -fsS http://127.0.0.1:8080/)
           echo "$page" | grep -q 'article:published_time'
           echo "$page" | grep -q 'article:modified_time'
           echo "$page" | grep -q '"dateModified"'
-          lm=$(curl -fsSI http://127.0.0.1:8080/ | tr -d '\r' | sed -n 's/^[Ll]ast-[Mm]odified: //p')
-          test -n "$lm"
-          code=$(curl -s -o /dev/null -w '%{http_code}' -H "If-Modified-Since: $lm" http://127.0.0.1:8080/)
-          test "$code" = "304"
+          echo "$page" | grep -q 'rel="canonical"'
+
+          # The pages render live cycle state, so a git-derived Last-Modified
+          # would let caches revalidate stale content. Its ABSENCE is the
+          # assertion — see docs/decision-records/0009-*.md. Do not "restore"
+          # the skeleton's 304 test here.
+          if curl -fsSI http://127.0.0.1:8080/ | tr -d '\r' | grep -qi '^last-modified:'; then
+            echo "ERROR: / sent a Last-Modified header; see ADR 0009" >&2
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1:8080/robots.txt | grep -q 'Sitemap: https://mastobots.skvip.lol/sitemap.xml'
+          curl -fsS http://127.0.0.1:8080/sitemap.xml | grep -q '<loc>https://mastobots.skvip.lol/vestlendingen/</loc>'
+          curl -fsS http://127.0.0.1:8080/llms.txt | grep -q 'mastobots'
+
+          # The bot page and its feed exist and advertise each other.
+          curl -fsS http://127.0.0.1:8080/vestlendingen/ | grep -q 'application/rss+xml'
+          curl -fsS http://127.0.0.1:8080/vestlendingen/rss.xml | grep -q '<rss version="2.0"'
+
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/finst-ikkje)" = "404"
           kill %1
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build the image and boot it
+        run: |
+          ./scripts/generate-page-dates.sh
+          docker build -t mastobots:ci .
+          docker run -d --name mastobots-ci -e DRY_RUN=1 -e DATA_DIR=/app/data \
+            -p 8081:8080 mastobots:ci
+          for i in $(seq 1 40); do
+            curl -fsS http://127.0.0.1:8081/healthz >/dev/null 2>&1 && break
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:8081/healthz | grep -qx ok
+          # The discoverability files must be in the IMAGE — a selective COPY
+          # that omits them ships 404s.
+          curl -fsS http://127.0.0.1:8081/robots.txt | grep -q 'Sitemap:'
+          curl -fsS http://127.0.0.1:8081/sitemap.xml | grep -q '<urlset'
+          docker rm -f mastobots-ci

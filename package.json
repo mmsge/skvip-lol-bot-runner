@@ -1,0 +1,14 @@
+{
+  "name": "mastobots",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A house for Mastodon robots on the naustet box.",
+  "license": "AGPL-3.0-or-later",
+  "main": "server.js",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/",
+    "dryrun": "node bin/dryrun.js"
+  }
+}
