@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * @vestlendingen-robot@skvip.lol — new articles from vestlendingen.no.
+ * @botlendingen@skvip.lol — new articles from vestlendingen.no.
  *
  * The whole robot is this file plus a block of `VESTLENDINGEN_` env vars. The
  * machinery in `lib/` knows nothing about this paper; everything specific to it
@@ -8,22 +8,26 @@
  *
  * The robot republishes headlines from a paper it has no relationship with, so
  * the account is unmistakably a third-party robot rather than the paper's own
- * feed: the display name says "(robot)", the bio says unofficial and
- * unaffiliated and links to vestlendingen.no as the source, Mastodon's bot flag
- * is set (which makes the ActivityPub type `Service` and puts the robot badge on
- * the profile), and the avatar is not their logo. It posts a heading, a short
- * intro and a link — never the body, which it can read and will not.
+ * feed: the handle is `botlendingen` rather than the paper's name, the display
+ * name carries 🤖, the bio says unofficial and unaffiliated and links to
+ * vestlendingen.no as the source, and Mastodon's bot flag is set (which makes
+ * the ActivityPub type `Service` and puts the robot badge on the profile). It
+ * posts a heading, a short intro and a link — never the body, which it can read
+ * and will not.
  *
  * Those are properties of the Mastodon account, set once by hand; they are
  * recorded here because they are part of the design and nothing else in the repo
- * would say so.
+ * would say so. **Keep them in step with the live account** — these strings are
+ * rendered on the public index and status page, so a stale handle here
+ * advertises an account that does not exist.
  */
 module.exports = {
   slug: "vestlendingen",
 
-  // How the robot presents itself on its own status page.
-  title: "Vestlendingen (robot)",
-  account: "@vestlendingen-robot@skvip.lol",
+  // How the robot presents itself on its own status page. Both mirror the live
+  // Mastodon account exactly, because the status page links people to it.
+  title: "Vestlendingen 🤖",
+  account: "@botlendingen@skvip.lol",
   summary:
     "Ein uoffisiell robot som legg ut nye artiklar frå vestlendingen.no. " +
     "Ikkje tilknytt Vestlendingen eller Initiativ Media.",
@@ -50,6 +54,11 @@ module.exports = {
   maxTags: 3,
 
   // The feed this house publishes on the paper's behalf.
+  //
+  // The feed title says "(robot)" in words rather than mirroring the account's
+  // 🤖, deliberately: a feed reader shows no bot badge, no handle and no
+  // profile, and cannot be relied on to render an emoji at all, so this is the
+  // one surface where the word has to carry it on its own.
   feed: {
     title: "Vestlendingen (robot)",
     description:
