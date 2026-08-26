@@ -2,7 +2,7 @@
 
 A house for Mastodon robots. Each robot reads a source and posts new articles to
 a Mastodon account on skvip.lol. One lives here today:
-**`@vestlendingen-robot@skvip.lol`**, which posts new articles from
+**`@botlendingen@skvip.lol`**, which posts new articles from
 vestlendingen.no.
 
 Repo `mmsge/skvip-lol-bot-runner`; the **slug is `mastobots`** (ADR 0007).

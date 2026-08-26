@@ -3,7 +3,7 @@
 A house for Mastodon robots, on the shared Hetzner box (`msge`). Each robot reads
 a source and posts new articles to a Mastodon account on skvip.lol.
 
-One robot lives here today: **[@vestlendingen-robot@skvip.lol](https://skvip.lol/@vestlendingen-robot)**,
+One robot lives here today: **[@botlendingen@skvip.lol](https://skvip.lol/@botlendingen)**,
 which posts new articles from [vestlendingen.no](https://www.vestlendingen.no) —
 a paper that publishes no feed of its own, so this house
 [serves one for it](https://mastobots.skvip.lol/vestlendingen/rss.xml).
