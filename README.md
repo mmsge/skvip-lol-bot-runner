@@ -10,7 +10,7 @@ a paper that publishes no feed of its own, so this house
 
 Repo `mmsge/skvip-lol-bot-runner`; the service slug is `mastobots`. Central
 TLS/routing lives in [`mmsge/naustet-server`](https://github.com/mmsge/naustet-server);
-see `CLAUDE.md` for the deployment context.
+see `AGENTS.md` for the deployment context.
 
 ## What a post looks like
 

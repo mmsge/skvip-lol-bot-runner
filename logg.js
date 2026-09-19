@@ -25,7 +25,7 @@
  */
 const { randomBytes } = require("node:crypto");
 
-// The service's slug, exactly as in the registry in naustet-server/CLAUDE.md.
+// The service's slug, exactly as in the registry in naustet-server/AGENTS.md.
 // `logg` attributes lines to a service by container name anyway, but carrying it
 // in the line means a mis-named container is visible rather than silently merged.
 const SVC = process.env.LOGG_SVC || process.env.SERVICE_SLUG || "mastobots";
