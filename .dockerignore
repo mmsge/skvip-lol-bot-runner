@@ -7,5 +7,5 @@ node_modules
 *.log
 .env
 README.md
-CLAUDE.md
+AGENTS.md
 Makefile
