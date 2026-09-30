@@ -58,3 +58,4 @@ decision or an agent made it without input**:
 | [0007](0007-a-house-for-robots.md) | `mastobots` is a house for robots, not one service per robot | Accepted |
 | [0008](0008-dry-run-output-is-a-file.md) | The dry run writes to a file, never to stdout | Accepted |
 | [0009](0009-no-http-last-modified-on-live-pages.md) | No HTTP `Last-Modified` on the status pages | Accepted |
+| [0010](0010-a-bot-that-reads-a-siblings-sqlite-db.md) | A bot that reads a sibling's SQLite DB | Accepted |

@@ -1,9 +1,10 @@
 # mastobots
 
 A house for Mastodon robots. Each robot reads a source and posts new articles to
-a Mastodon account on skvip.lol. One lives here today:
+a Mastodon account on skvip.lol. Two live here today:
 **`@botlendingen@skvip.lol`**, which posts new articles from
-vestlendingen.no.
+vestlendingen.no, and **`@linjeskift@skvip.lol`**, which posts rail news read
+from the linjeskift service's SQLite database (ADR 0010).
 
 Repo `mmsge/skvip-lol-bot-runner`; the **slug is `mastobots`** (ADR 0007).
 
@@ -63,7 +64,7 @@ logg.js           box logging module, verbatim from the skeleton
 bots/*.js         one descriptor per robot — slug, account, source, composer caps
 lib/config.js     env parsing; prefix-first, then house default
 lib/registry.js   loads bots/, validates each descriptor
-lib/source-*.js   sanity (primary) and sitemap+JSON-LD (fallback)
+lib/source-*.js   sanity (primary) and sitemap+JSON-LD (fallback); linjeskift (SQLite, ADR 0010)
 lib/article.js    the shared Article shape both sources return
 lib/filters.js    seen, age, heading pattern, noindex policy, walls
 lib/hashtags.js   publisher `name` -> CamelCase hashtag
