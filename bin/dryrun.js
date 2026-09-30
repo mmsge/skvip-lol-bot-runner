@@ -26,7 +26,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { load } = require("../lib/registry");
 const { serviceConfig } = require("../lib/config");
-const sanity = require("../lib/source-sanity");
+const { fetchPrimary, orderForPosting } = require("../lib/poller");
 const { evaluate, tally } = require("../lib/filters");
 const { composeToot } = require("../lib/toot");
 
@@ -61,7 +61,7 @@ function renderBot({ bot, config }, articles) {
   let shortest = Infinity;
   let truncations = 0;
 
-  for (const evaluation of postable.slice().reverse()) {
+  for (const evaluation of orderForPosting(postable)) {
     const toot = composeToot(evaluation.article, bot.composer);
     longest = Math.max(longest, toot.chars);
     shortest = Math.min(shortest, toot.chars);
@@ -70,7 +70,9 @@ function renderBot({ bot, config }, articles) {
     const flags = [
       `${toot.chars}/500 chars`,
       evaluation.visibility,
-      evaluation.article.image ? "has image" : "NO image",
+      evaluation.article.breaking ? "BREAKING" : null,
+      // Only Sanity articles carry an image; for the others the flag says nothing.
+      bot.source === "sanity" ? (evaluation.article.image ? "has image" : "NO image") : null,
       toot.truncated ? "TRUNCATED" : null,
     ].filter(Boolean);
     say(`[${flags.join(" · ")}]`);
@@ -115,8 +117,7 @@ async function main() {
   const chunks = [];
   const summaries = [];
   for (const entry of bots) {
-    const articles = await sanity.fetchArticles(entry.config, {
-      limit: entry.bot.fetchLimit,
+    const articles = await fetchPrimary(entry.bot, entry.config, {
       publicBaseUrl: service.publicBaseUrl,
     });
     const rendered = renderBot(entry, articles);

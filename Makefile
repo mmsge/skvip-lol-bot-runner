@@ -14,7 +14,7 @@ status:            ## Show container status
 	docker compose ps
 
 test:              ## Run the unit tests (no network, fixtures only)
-	node --test test/
+	node --test 'test/*.test.js'
 
 verify:            ## Build + boot + hit /healthz (local smoke test)
 	./scripts/generate-page-dates.sh || echo "WARN: page dates not regenerated — pages will stamp boot time"
