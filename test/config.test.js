@@ -123,8 +123,7 @@ test("rejects a descriptor missing what the house needs", () => {
 
 test("loads the bots directory", () => {
   const bots = loadDescriptors();
-  assert.equal(bots.length, 1);
-  assert.equal(bots[0].slug, "vestlendingen");
+  assert.deepEqual(bots.map((b) => b.slug), ["linjeskift", "vestlendingen"]);
 });
 
 test("prepare assembles the composer options from descriptor and env", () => {
@@ -134,4 +133,58 @@ test("prepare assembles the composer options from descriptor and env", () => {
     maxCategories: 2,
     maxTags: 3,
   });
+});
+
+// ---------------------------------------------------------- linjeskift ------
+
+const linjeskift = require("../bots/linjeskift");
+
+test("the linjeskift descriptor is valid and reads the database", () => {
+  assert.doesNotThrow(() => validate(linjeskift, "linjeskift.js"));
+  assert.equal(linjeskift.source, "linjeskift-db");
+});
+
+test("source defaults to sanity and rejects an unknown value", () => {
+  const good = { slug: "x", title: "X", account: "@x@skvip.lol", publisher: { name: "P" }, fetchLimit: 20 };
+  assert.equal(prepare(good, {}).bot.source, "sanity");
+  assert.throws(
+    () => validate({ ...good, source: "rss" }, "x.js"),
+    (err) => err instanceof RegistryError && err.message.includes("source"),
+  );
+  assert.throws(
+    () => validate({ ...good, source: "linjeskift-db" }, "x.js"),
+    (err) => err instanceof RegistryError && err.message.includes("labels"),
+  );
+});
+
+test("a descriptor's defaults sit below both env layers and above the house's", () => {
+  const own = botConfig(linjeskift, {});
+  assert.equal(own.language, "en");
+  assert.deepEqual(own.baseHashtags, ["Linjeskift"]);
+  assert.equal(own.backfill, true);
+  assert.equal(botConfig(linjeskift, { LANGUAGE: "nn" }).language, "nn");
+  assert.equal(botConfig(linjeskift, { LANGUAGE: "nn", LINJESKIFT_LANGUAGE: "de" }).language, "de");
+  // Vestlendingen is untouched by any of it.
+  assert.equal(botConfig(bot, {}).language, "no");
+  assert.equal(botConfig(bot, {}).backfill, false);
+});
+
+test("the database path, relevance floor and backfill resolve from LINJESKIFT_ variables", () => {
+  const config = botConfig(linjeskift, {
+    LINJESKIFT_DB_PATH: "/tmp/x.db",
+    LINJESKIFT_RELEVANCE_MIN: "0.5",
+    LINJESKIFT_BACKFILL: "false",
+    LINJESKIFT_BASE_HASHTAGS: "Tog Europa",
+  });
+  assert.equal(config.dbPath, "/tmp/x.db");
+  assert.equal(config.relevanceMin, 0.5);
+  assert.equal(config.backfill, false);
+  assert.deepEqual(config.baseHashtags, ["Tog", "Europa"]);
+  const defaults = botConfig(linjeskift, {});
+  assert.equal(defaults.dbPath, "/linjeskift/linjeskift.db");
+  assert.equal(defaults.relevanceMin, 0.3);
+});
+
+test("a relevance floor outside 0 to 1 refuses to boot", () => {
+  assert.throws(() => botConfig(linjeskift, { LINJESKIFT_RELEVANCE_MIN: "30" }), ConfigError);
 });
