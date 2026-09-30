@@ -75,7 +75,7 @@ lib/poller.js     the cycle
 bin/dryrun.js     compose and write to a file, never post
 ```
 
-**Zero runtime dependencies.** Node 22 ships `fetch` and `node:test`, and a
+**Zero runtime dependencies.** Node 24 ships `fetch`, `node:sqlite` and `node:test`, and a
 service with no dependency tree never needs a security bump. There is no
 `npm install` step because there is nothing to install. Keep it that way.
 

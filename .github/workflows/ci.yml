@@ -22,7 +22,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       # There is nothing to install: the service has zero runtime dependencies
       # on purpose. If this ever needs `npm ci`, that is a decision to make

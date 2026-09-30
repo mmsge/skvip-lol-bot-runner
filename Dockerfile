@@ -1,6 +1,6 @@
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
-# Zero runtime dependencies on purpose (plan §4): node 22 ships fetch and
+# Zero runtime dependencies on purpose (plan §4): node 24 ships fetch, node:sqlite and
 # node:test, and a service with no dependency tree never needs a security bump.
 # There is no `npm install` step because there is nothing to install.
 COPY package.json server.js logg.js robots.txt ./
