@@ -6,8 +6,8 @@
  * service on the box) ingests rail-news feeds, decides what is worth keeping and
  * writes its verdicts into a SQLite database; this robot reads that database and
  * toots each kept item, and does nothing else (ADR 0010). It generates no text:
- * a toot is the original English title, the feed's own snippet, the link and
- * hashtags. The hashtags are the only Nynorsk on it, being the category and
+ * a toot is the original title, the feed's own snippet, the link and
+ * hashtags, in the language of the source feed (ADR 0011). The hashtags are the only Nynorsk on it, being the category and
  * country labels below.
  *
  * Those account properties are set once by hand on skvip.lol: the bot flag, the
@@ -21,7 +21,7 @@ module.exports = {
   account: "@linjeskift@skvip.lol",
   summary:
     "Ein robot som legg ut europeiske jernbanenyhende som linjeskift har valt ut. " +
-    "Overskriftene står på originalspråket, engelsk.",
+    "Overskriftene står på originalspråket: engelsk, norsk, svensk eller nederlandsk.",
 
   // Where the items come from. `linjeskift-db` reads the sibling's SQLite
   // database (`LINJESKIFT_DB_PATH`); the default, `sanity`, is the other robot's.
@@ -36,7 +36,8 @@ module.exports = {
   },
 
   // Sits under the house's own defaults for language and hashtags, and under
-  // any env var. English because the toots are; the base tag is used verbatim.
+  // any env var. `LANGUAGE` is only the fallback for an item that carries no language
+  // of its own (ADR 0011); the base tag is used verbatim.
   defaults: {
     LANGUAGE: "en",
     BASE_HASHTAGS: "Linjeskift",

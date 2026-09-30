@@ -8,7 +8,7 @@ Two robots live here today:
 | Robot | Reads | Posts |
 |---|---|---|
 | **[@botlendingen@skvip.lol](https://skvip.lol/@botlendingen)** | [vestlendingen.no](https://www.vestlendingen.no), through its Sanity dataset with a sitemap fallback | new articles. The paper publishes no feed of its own, so this house [serves one for it](https://mastobots.skvip.lol/vestlendingen/rss.xml) |
-| **[@linjeskift@skvip.lol](https://skvip.lol/@linjeskift)** | the SQLite database of the sibling service linjeskift (`source: "linjeskift-db"`, ADR 0010) | European rail news it has kept, as the original English title, the feed snippet, the link and hashtags (`#Linjeskift`, a Nynorsk category, a Nynorsk country). Breaking items go first and jump the per-cycle cap. Nothing is generated. |
+| **[@linjeskift@skvip.lol](https://skvip.lol/@linjeskift)** | the SQLite database of the sibling service linjeskift (`source: "linjeskift-db"`, ADR 0010) | European rail news it has kept, as the original title, the feed snippet, the link and hashtags (`#Linjeskift`, a Nynorsk category, a Nynorsk country). Breaking items go first and jump the per-cycle cap. Each toot is posted in the item's own language (`no`, `sv`, `nl` or `en`, read from `items.lang`, ADR 0011), falling back to the bot's `LANGUAGE` for an item without one. Nothing is generated. |
 
 Repo `mmsge/skvip-lol-bot-runner`; the service slug is `mastobots`. Central
 TLS/routing lives in [`mmsge/naustet-server`](https://github.com/mmsge/naustet-server);

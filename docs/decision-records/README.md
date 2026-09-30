@@ -59,3 +59,4 @@ decision or an agent made it without input**:
 | [0008](0008-dry-run-output-is-a-file.md) | The dry run writes to a file, never to stdout | Accepted |
 | [0009](0009-no-http-last-modified-on-live-pages.md) | No HTTP `Last-Modified` on the status pages | Accepted |
 | [0010](0010-a-bot-that-reads-a-siblings-sqlite-db.md) | A bot that reads a sibling's SQLite DB | Accepted |
+| [0011](0011-post-in-the-items-language.md) | Post each toot in the item's own language | Accepted |

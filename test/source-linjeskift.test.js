@@ -67,11 +67,18 @@ const ROWS = [
   ["i-breaking-low", "breaking", "new_line", "GB", 0.05, "2026-09-28T08:00:00Z", "classified"],
 ];
 
-function buildDb(rows = ROWS) {
+// linjeskift 1.1.0 added `lang` to the end of items; linjeskift runs the ALTER
+// TABLE on an old database, which appends the column the same way.
+const SCHEMA_WITH_LANG = SCHEMA.replace(
+  "  digest_id     INTEGER,\n",
+  "  digest_id     INTEGER,\n  lang          TEXT,\n",
+);
+
+function buildDb(rows = ROWS, { schema = SCHEMA, langs = {} } = {}) {
   const file = path.join(tmpdir(), "linjeskift.db");
   const db = new DatabaseSync(file);
   db.exec("PRAGMA journal_mode=WAL");
-  db.exec(SCHEMA);
+  db.exec(schema);
   const insert = db.prepare(
     `INSERT INTO items (id, source, url, title, published_at, raw_summary, fetched_at,
                         status, tier, category, country, relevance)
@@ -79,6 +86,10 @@ function buildDb(rows = ROWS) {
   );
   for (const [id, tier, category, country, relevance, published, status] of rows) {
     insert.run(id, `https://example.test/${id}`, `Title ${id}`, published, `Snippet ${id}`, status, tier, category, country, relevance);
+  }
+  if (schema === SCHEMA_WITH_LANG) {
+    const setLang = db.prepare("UPDATE items SET lang = ? WHERE id = ?");
+    for (const [id, lang] of Object.entries(langs)) setLang.run(lang, id);
   }
   db.close();
   return file;
@@ -194,4 +205,30 @@ test("a file that is not a database, or lacks the table, is a source failure", (
 
 test("an empty items table is an empty result, not a failure", () => {
   assert.deepEqual(read(buildDb([])), []);
+});
+
+test("reads the item's language when the database has the lang column", () => {
+  const file = buildDb(ROWS, {
+    schema: SCHEMA_WITH_LANG,
+    langs: { "a-digest-high": "nl", "c-digest-edge": "NO", "h-nodate": "not a code" },
+  });
+  const byId = Object.fromEntries(read(file).map((a) => [a.id, a.language]));
+  assert.equal(byId["a-digest-high"], "nl");
+  assert.equal(byId["c-digest-edge"], "no", "a code is lowercased");
+  assert.equal(byId["h-nodate"], null, "something that is not a language code is no language");
+  assert.equal(byId["d-breaking-old"], null, "NULL in the column stays null");
+});
+
+test("a database without the lang column still reads, with no language on any item", () => {
+  const file = buildDb(); // the pre-1.1.0 schema
+  assert.equal(source.hasLangColumn(new DatabaseSync(file, { readOnly: true })), false);
+  const articles = read(file);
+  assert.equal(articles.length, 5);
+  assert.deepEqual([...new Set(articles.map((a) => a.language))], [null]);
+});
+
+test("hasLangColumn sees the column on a current database", () => {
+  const db = new DatabaseSync(buildDb(ROWS, { schema: SCHEMA_WITH_LANG }), { readOnly: true });
+  assert.equal(source.hasLangColumn(db), true);
+  db.close();
 });
