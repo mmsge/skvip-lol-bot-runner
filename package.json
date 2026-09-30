@@ -1,6 +1,6 @@
 {
   "name": "mastobots",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "A house for Mastodon robots on the naustet box.",
   "license": "AGPL-3.0-or-later",

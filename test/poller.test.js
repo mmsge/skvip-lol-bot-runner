@@ -317,7 +317,7 @@ const { makeArticle } = require("../lib/article");
 const LS_NOW = Date.parse("2026-09-30T12:00:00.000Z");
 const hoursAgo = (h) => new Date(LS_NOW - h * 3600 * 1000).toISOString();
 
-function lsArticle(id, { breaking = false, ageHours = 1 } = {}) {
+function lsArticle(id, { breaking = false, ageHours = 1, language } = {}) {
   return makeArticle({
     id,
     heading: `Heading ${id}`,
@@ -326,6 +326,7 @@ function lsArticle(id, { breaking = false, ageHours = 1 } = {}) {
     publishedAt: hoursAgo(ageHours),
     breaking,
     categories: [{ name: "Nytt samband" }, { name: "Tyskland" }],
+    language,
     source: "linjeskift-db",
   });
 }
@@ -363,6 +364,25 @@ test("breaking items jump the per-cycle cap, oldest first within each group", as
     "both breaking items go first, then the cap leaves room for one more",
   );
   assert.equal(client.posts[0].language, "en");
+});
+
+test("each toot carries its article's language, and falls back to the bot's when it has none", async (t) => {
+  t.mock.method(linjeskiftSource, "fetchArticles", () => [
+    lsArticle("dutch", { language: "nl", ageHours: 1 }),
+    lsArticle("norwegian", { language: "no", ageHours: 2 }),
+    lsArticle("unknown", { ageHours: 3 }),
+  ]);
+  const { bot, config, store } = lsSetup();
+  const client = recordingClient();
+
+  await runCycle(bot, config, store, lsDeps(client));
+
+  const byHeading = Object.fromEntries(client.posts.map((p) => [p.status.split("\n")[0], p.language]));
+  assert.deepEqual(byHeading, {
+    "Heading dutch": "nl",
+    "Heading norwegian": "no",
+    "Heading unknown": "en",
+  });
 });
 
 test("more breaking items than the cap still all post", async (t) => {
