@@ -16,6 +16,16 @@ services:
       # seen on next boot (BACKFILL=0), so nothing double-posts — but the volume
       # is what keeps that from happening at all.
       - mastobots-data:/app/data
+      # linjeskift's SQLite database, written by the linjeskift service. The
+      # mount is read-write although the runner opens the DB `readOnly`: a
+      # reader of a WAL database must be able to create and write the -shm and
+      # -wal files beside it. See ADR 0010 and the README's deploy notes.
+      - /var/lib/linjeskift:/linjeskift
+    # The container user has no rights on the host's /var/lib/linjeskift. The
+    # directory is group-owned by a group on the host, and the container joins
+    # that group by number. Set LINJESKIFT_GID in .env to the host group's GID.
+    group_add:
+      - "${LINJESKIFT_GID:-10001}"
     # Cap the container log. The runtime is the transport for the central `logg`
     # service (logs.msge.no), so this file IS part of the logging pipeline — and
     # without these options the json-file driver never rotates. The product
