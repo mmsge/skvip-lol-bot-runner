@@ -107,14 +107,14 @@ test("the floor is inclusive, configurable, and does not apply to breaking items
   assert.deepEqual(strict, ["a-digest-high", "d-breaking-old", "i-breaking-low"]);
 });
 
-test("orders breaking first, then newest", () => {
+test("orders newest first, whatever the tier", () => {
   const ids = read(buildDb()).map((a) => a.id);
   assert.deepEqual(ids, [
-    "i-breaking-low",
-    "d-breaking-old",
     "h-nodate", // no date: fetched_at (13:00) stands in, so it is the newest
     "a-digest-high",
     "c-digest-edge",
+    "i-breaking-low",
+    "d-breaking-old",
   ]);
 });
 
@@ -148,9 +148,11 @@ test("the bucket country 'other' makes no label, and an unknown code falls back"
   assert.deepEqual(article.categories.map((c) => c.name), ["Større avbrot"]);
 });
 
-test("LIMIT keeps the breaking items when it bites", () => {
+test("LIMIT keeps the newest items, so old breaking items cannot crowd out new ones", () => {
+  // Tiers never change, so a breaking-first window would fill up with
+  // long-posted breaking items and never reach a new digest item again.
   const ids = read(buildDb(), {}, 2).map((a) => a.id);
-  assert.deepEqual(ids, ["i-breaking-low", "d-breaking-old"]);
+  assert.deepEqual(ids, ["h-nodate", "a-digest-high"]);
 });
 
 test("opens the database read-only, and reads while a writer holds it in WAL mode", () => {

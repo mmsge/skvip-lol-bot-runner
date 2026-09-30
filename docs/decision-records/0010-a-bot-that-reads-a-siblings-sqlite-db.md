@@ -44,7 +44,10 @@ directly were on the table:
   has no second one.
 - **Breaking items jump the cap.** After filtering, the poller sorts with a
   stable sort, breaking first, and only then slices to `MAX_POSTS_PER_CYCLE`.
-  Vestlendingen has no breaking items and sorts exactly as before.
+  Vestlendingen has no breaking items and sorts exactly as before. The SQL
+  itself reads the newest `fetchLimit` items with no tier priority: a tier
+  never changes, so a breaking-first window would fill with old, long-posted
+  breaking items and starve new digest items for good.
 - **Node 24**, for `node:sqlite` without a flag, so the runner keeps its zero
   runtime dependencies. On Node 22 it works but prints an ExperimentalWarning.
 - The toot is not generated: the original English title, the feed snippet, the
