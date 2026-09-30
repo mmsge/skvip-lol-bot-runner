@@ -130,3 +130,78 @@ test("hard-cuts a single unbroken word rather than trimming to nothing", () => {
   const out = trimToWord("x".repeat(100), 20);
   assert.ok(out.length > 1 && out.endsWith("…"));
 });
+
+// ------------------------------------------------------------- linjeskift ----
+
+const linjeskiftBot = require("../bots/linjeskift");
+const { toArticle } = require("../lib/source-linjeskift");
+const { botConfig } = require("../lib/config");
+
+function lsToot(row, env = {}) {
+  const config = botConfig(linjeskiftBot, env);
+  const article = toArticle(
+    {
+      id: "abc",
+      url: "https://www.railwaygazette.example/news/some-long-path/article.html",
+      title: "European Sleeper adds a Paris to Berlin night service",
+      raw_summary: "The operator will run three weekly departures from December.",
+      published_at: "2026-09-29T10:00:00Z",
+      fetched_at: "2026-09-29T11:00:00Z",
+      tier: "digest",
+      category: "night_train",
+      country: "DE",
+      ...row,
+    },
+    linjeskiftBot.labels,
+  );
+  return composeToot(article, {
+    baseHashtags: config.baseHashtags,
+    maxCategories: linjeskiftBot.maxCategories,
+    maxTags: linjeskiftBot.maxTags,
+  });
+}
+
+test("a linjeskift toot is title, snippet, link and the three hashtags", () => {
+  const toot = lsToot({});
+  assert.equal(
+    toot.text,
+    [
+      "European Sleeper adds a Paris to Berlin night service",
+      "",
+      "The operator will run three weekly departures from December.",
+      "",
+      "https://www.railwaygazette.example/news/some-long-path/article.html",
+      "",
+      "#Linjeskift #Nattog #Tyskland",
+    ].join("\n"),
+  );
+  assert.deepEqual(toot.hashtags, ["Linjeskift", "Nattog", "Tyskland"]);
+  assert.equal(toot.truncated, false);
+});
+
+test("Nynorsk labels with a space or a non-ASCII letter become CamelCase tags", () => {
+  const toot = lsToot({ category: "major_disruption", country: "UK" });
+  assert.deepEqual(toot.hashtags, ["Linjeskift", "StørreAvbrot", "Storbritannia"]);
+});
+
+test("a country of 'other' and a missing snippet leave no stray tag or blank paragraph", () => {
+  const toot = lsToot({ country: "other", raw_summary: null });
+  assert.deepEqual(toot.hashtags, ["Linjeskift", "Nattog"]);
+  assert.ok(!/\n\n\n/.test(toot.text));
+  assert.equal(toot.text.split("\n\n").length, 3, "title, link, tags");
+});
+
+test("a long snippet is trimmed to the 500-character budget, keeping title, link and tags", () => {
+  const toot = lsToot({ raw_summary: "Sentence about trains. ".repeat(60) });
+  assert.equal(toot.truncated, true);
+  assert.ok(toot.chars <= LIMIT, `${toot.chars} over the limit`);
+  assert.ok(toot.text.startsWith("European Sleeper adds"));
+  assert.ok(toot.text.endsWith("#Linjeskift #Nattog #Tyskland"));
+  assert.ok(toot.text.includes("https://www.railwaygazette.example/news/some-long-path/article.html"));
+});
+
+test("the URL counts as 23 characters however long it is", () => {
+  const long = `https://example.test/${"x".repeat(300)}`;
+  const toot = lsToot({ url: long, raw_summary: "" });
+  assert.ok(toot.chars < 200, `${toot.chars} chars for a short toot with a long URL`);
+});

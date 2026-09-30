@@ -3,10 +3,12 @@
 A house for Mastodon robots, on the shared Hetzner box (`msge`). Each robot reads
 a source and posts new articles to a Mastodon account on skvip.lol.
 
-One robot lives here today: **[@botlendingen@skvip.lol](https://skvip.lol/@botlendingen)**,
-which posts new articles from [vestlendingen.no](https://www.vestlendingen.no) —
-a paper that publishes no feed of its own, so this house
-[serves one for it](https://mastobots.skvip.lol/vestlendingen/rss.xml).
+Two robots live here today:
+
+| Robot | Reads | Posts |
+|---|---|---|
+| **[@botlendingen@skvip.lol](https://skvip.lol/@botlendingen)** | [vestlendingen.no](https://www.vestlendingen.no), through its Sanity dataset with a sitemap fallback | new articles. The paper publishes no feed of its own, so this house [serves one for it](https://mastobots.skvip.lol/vestlendingen/rss.xml) |
+| **[@linjeskift@skvip.lol](https://skvip.lol/@linjeskift)** | the SQLite database of the sibling service linjeskift (`source: "linjeskift-db"`, ADR 0010) | European rail news it has kept, as the original English title, the feed snippet, the link and hashtags (`#Linjeskift`, a Nynorsk category, a Nynorsk country). Breaking items go first and jump the per-cycle cap. Nothing is generated. |
 
 Repo `mmsge/skvip-lol-bot-runner`; the service slug is `mastobots`. Central
 TLS/routing lives in [`mmsge/naustet-server`](https://github.com/mmsge/naustet-server);
@@ -92,6 +94,12 @@ resolves prefix-first, so `DOMET_POLL_INTERVAL_MINUTES` beats
 The token is the one setting with **no** house fallback — a shared token would
 post one robot's articles from another robot's account.
 
+### A robot that reads a database
+
+A descriptor may set `source: "linjeskift-db"` (the default is `"sanity"`), and
+`defaults: { LANGUAGE: "en", … }` for settings that differ from the house's.
+Those sit below both env layers. See `bots/linjeskift.js` and ADR 0010.
+
 ## Local
 
 ```sh
@@ -122,6 +130,39 @@ currently published article seen without posting**, so the account starts quiet;
 
 Then fill in `naustet-server/services/mastobots-skvip-lol.md` and commit.
 
+### Deploying the linjeskift robot
+
+The runner reads `/var/lib/linjeskift/linjeskift.db`, which the linjeskift
+service writes. The container user cannot read it without help, so this is done
+once on the host, before the first deploy:
+
+```sh
+# Pick a group for the data directory (or reuse linjeskift's own), and note its GID.
+ssh msge 'getent group linjeskift || sudo groupadd --gid 10001 linjeskift'
+ssh msge 'sudo chgrp -R linjeskift /var/lib/linjeskift && sudo chmod -R g+rwX /var/lib/linjeskift'
+# New files keep the group, so linjeskift's later -wal and -shm files stay reachable.
+ssh msge 'sudo chmod g+s /var/lib/linjeskift'
+```
+
+Put that group's GID in `.env` as `LINJESKIFT_GID`. `docker-compose.yml` adds it
+to the container with `group_add`. The DB and its `-wal` and `-shm` files must
+all be group-readable and group-writable, and the linjeskift service must create
+them with a umask that keeps `g+w` (umask `002`).
+
+The mount is **read-write on purpose**. The runner opens the DB `readOnly`, so it
+cannot change a row, but a reader of a WAL database has to create and write the
+`-shm` and `-wal` files beside it. A `:ro` mount makes every open fail.
+
+Symptom of a wrong GID or mode: `source.unavailable` in the log every cycle and
+nothing posted. Then set `LINJESKIFT_MASTODON_TOKEN` in `.env`. The house
+refuses to boot without it unless `DRY_RUN=1`.
+
+`make dryrun` composes the linjeskift toots too, breaking first, so read
+`dryrun/dryrun.txt` before flipping `DRY_RUN=0`. With `LINJESKIFT_BACKFILL=1`,
+the default for this robot, the first live cycle posts the items inside
+`MAX_ARTICLE_AGE_HOURS`, at most `MAX_POSTS_PER_CYCLE` per cycle, so the account
+fills in over a few cycles. Set it to `0` to start quiet.
+
 ## Configuration
 
 Every setting is documented in `.env.example`. The ones worth knowing about:
@@ -133,6 +174,10 @@ Every setting is documented in `.env.example`. The ones worth knowing about:
 | `VESTLENDINGEN_SKIP_HEADING_PATTERN` | the weekday regex | the daily briefs, ADR 0005 |
 | `MAX_POSTS_PER_CYCLE` | `5` | a bulk publish cannot flood the timeline |
 | `MAX_ARTICLE_AGE_HOURS` | `72` | an edited old article does not resurface |
+| `LINJESKIFT_MASTODON_TOKEN` | none | scope `write:statuses` only |
+| `LINJESKIFT_DB_PATH` | `/linjeskift/linjeskift.db` | the sibling's database inside the container |
+| `LINJESKIFT_RELEVANCE_MIN` | `0.30` | digest items below it are not posted, breaking items ignore it |
+| `LINJESKIFT_GID` | `10001` | host group of `/var/lib/linjeskift`, read by compose |
 | `DRY_RUN` | `0` | compose and log, never post |
 | `BACKFILL` | `0` | first run marks existing articles seen |
 
@@ -155,11 +200,11 @@ MAX_ARTICLE_AGE_HOURS=8760     # for one cycle, then put it back
 
 ## Decision records
 
-`docs/decision-records/` — nine of them, covering why this is a Mastodon account
+`docs/decision-records/` — ten of them, covering why this is a Mastodon account
 rather than a native actor, why the Sanity dataset is read at all and what the
 manners are, why articles are keyed on `_id`, the noindex decision, the daily
 briefs, the hashtag derivation, the house architecture, why the dry run writes to
-a file, and why the pages send no `Last-Modified`.
+a file, why the pages send no `Last-Modified`, and why a robot may read a sibling's SQLite database.
 
 ## Licence
 

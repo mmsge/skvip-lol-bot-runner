@@ -307,3 +307,162 @@ test("noindex policy unlisted posts the held articles quietly", async (t) => {
   assert.equal(client.posts.length, 12, "eight, plus the four noindex ones");
   assert.equal(unlisted.length, 4);
 });
+
+// ------------------------------------------------------------- linjeskift ----
+
+const linjeskiftSource = require("../lib/source-linjeskift");
+const linjeskiftDescriptor = require("../bots/linjeskift");
+const { makeArticle } = require("../lib/article");
+
+const LS_NOW = Date.parse("2026-09-30T12:00:00.000Z");
+const hoursAgo = (h) => new Date(LS_NOW - h * 3600 * 1000).toISOString();
+
+function lsArticle(id, { breaking = false, ageHours = 1 } = {}) {
+  return makeArticle({
+    id,
+    heading: `Heading ${id}`,
+    intro: `Snippet ${id}`,
+    url: `https://example.test/${id}`,
+    publishedAt: hoursAgo(ageHours),
+    breaking,
+    categories: [{ name: "Nytt samband" }, { name: "Tyskland" }],
+    source: "linjeskift-db",
+  });
+}
+
+function lsSetup(env = {}) {
+  const { bot, config } = prepare(linjeskiftDescriptor, {
+    LINJESKIFT_MASTODON_TOKEN: "tok",
+    POST_SPACING_SECONDS: "0",
+    ...env,
+  });
+  return { bot, config, store: new Store(tmpdir(), bot.slug) };
+}
+
+const lsDeps = (client) => ({ now: LS_NOW, sleep: async () => {}, client });
+
+test("breaking items jump the per-cycle cap, oldest first within each group", async (t) => {
+  // Newest first, as the source returns them (breaking group leading).
+  const articles = [
+    lsArticle("b-new", { breaking: true, ageHours: 1 }),
+    lsArticle("b-old", { breaking: true, ageHours: 5 }),
+    lsArticle("d-new", { ageHours: 2 }),
+    lsArticle("d-mid", { ageHours: 4 }),
+    lsArticle("d-old", { ageHours: 6 }),
+  ];
+  t.mock.method(linjeskiftSource, "fetchArticles", () => articles);
+  const { bot, config, store } = lsSetup({ MAX_POSTS_PER_CYCLE: "3" });
+  const client = recordingClient();
+
+  const summary = await runCycle(bot, config, store, lsDeps(client));
+
+  assert.equal(summary.source, "linjeskift-db");
+  assert.deepEqual(
+    client.posts.map((p) => p.status.split("\n")[0]),
+    ["Heading b-old", "Heading b-new", "Heading d-old"],
+    "both breaking items go first, then the cap leaves room for one more",
+  );
+  assert.equal(client.posts[0].language, "en");
+});
+
+test("more breaking items than the cap still all post", async (t) => {
+  t.mock.method(linjeskiftSource, "fetchArticles", () => [
+    lsArticle("b1", { breaking: true }),
+    lsArticle("b2", { breaking: true, ageHours: 2 }),
+    lsArticle("b3", { breaking: true, ageHours: 3 }),
+    lsArticle("d1"),
+  ]);
+  const { bot, config, store } = lsSetup({ MAX_POSTS_PER_CYCLE: "2" });
+  const client = recordingClient();
+  await runCycle(bot, config, store, lsDeps(client));
+  // The cap is a slice after the sort, so it still bounds the cycle; breaking
+  // items beyond it wait for the next one rather than being dropped.
+  assert.equal(client.posts.length, 2);
+  assert.ok(client.posts.every((p) => /Heading b/.test(p.status)));
+  await runCycle(bot, config, store, lsDeps(client));
+  assert.equal(client.posts.length, 4, "the rest drain next cycle, breaking first");
+  assert.match(client.posts[3].status, /Heading d1/);
+});
+
+test("the shared order is stable and leaves a breaking-free batch exactly as before", () => {
+  const { orderForPosting } = require("../lib/poller");
+  const ev = (id, breaking) => ({ article: { id, breaking } });
+  assert.deepEqual(
+    orderForPosting([ev("a", false), ev("b", false), ev("c", false)]).map((e) => e.article.id),
+    ["c", "b", "a"],
+  );
+  assert.deepEqual(
+    orderForPosting([ev("a", false), ev("b", true), ev("c", false), ev("d", true)]).map((e) => e.article.id),
+    ["d", "b", "c", "a"],
+  );
+});
+
+test("BACKFILL posts the items inside the age window on first run, capped per cycle", async (t) => {
+  t.mock.method(linjeskiftSource, "fetchArticles", () => [
+    lsArticle("in-1", { ageHours: 1 }),
+    lsArticle("in-2", { ageHours: 10 }),
+    lsArticle("in-3", { ageHours: 20 }),
+    lsArticle("out", { ageHours: 500 }),
+  ]);
+  // The descriptor's own default is BACKFILL on, so nothing is set here.
+  const { bot, config, store } = lsSetup({ MAX_POSTS_PER_CYCLE: "2" });
+  assert.equal(config.backfill, true);
+  const client = recordingClient();
+
+  const first = await runCycle(bot, config, store, lsDeps(client));
+  assert.equal(first.posted, 2);
+  const second = await runCycle(bot, config, store, lsDeps(client));
+  assert.equal(second.posted, 1);
+  assert.equal(client.posts.length, 3, "the one outside the window never posts");
+  assert.ok(!client.posts.some((p) => /Heading out/.test(p.status)));
+});
+
+test("without BACKFILL the first run marks the items and posts nothing", async (t) => {
+  t.mock.method(linjeskiftSource, "fetchArticles", () => [lsArticle("x"), lsArticle("y", { breaking: true })]);
+  const { bot, config, store } = lsSetup({ LINJESKIFT_BACKFILL: "0" });
+  const client = recordingClient();
+  await runCycle(bot, config, store, lsDeps(client));
+  assert.equal(client.posts.length, 0);
+  assert.equal(store.seenArticles, 2);
+});
+
+test("an item posts once", async (t) => {
+  t.mock.method(linjeskiftSource, "fetchArticles", () => [lsArticle("x")]);
+  const { bot, config, store } = lsSetup();
+  const client = recordingClient();
+  await runCycle(bot, config, store, lsDeps(client));
+  await runCycle(bot, config, store, lsDeps(client));
+  assert.equal(client.posts.length, 1);
+});
+
+test("an unreadable database posts nothing, writes nothing off and retries next cycle", async (t) => {
+  let fail = true;
+  t.mock.method(linjeskiftSource, "fetchArticles", () => {
+    if (fail) throw new Error("linjeskift database unavailable: unable to open database file");
+    return [lsArticle("x")];
+  });
+  const { bot, config, store } = lsSetup();
+  const client = recordingClient();
+
+  const down = await runCycle(bot, config, store, lsDeps(client));
+  assert.equal(client.posts.length, 0);
+  assert.equal(down.source, null);
+  assert.equal(down.error, "source unavailable");
+  assert.equal(store.seenArticles, 0);
+
+  fail = false;
+  const up = await runCycle(bot, config, store, lsDeps(client));
+  assert.equal(up.posted, 1, "the outage cost nothing but time");
+});
+
+test("the linjeskift robot never touches the Sanity or sitemap paths", async (t) => {
+  const boom = () => {
+    throw new Error("must not be called");
+  };
+  t.mock.method(sanity, "fetchArticles", boom);
+  t.mock.method(sitemap, "fetchArticles", boom);
+  t.mock.method(linjeskiftSource, "fetchArticles", () => []);
+  const { bot, config, store } = lsSetup();
+  const summary = await runCycle(bot, config, store, lsDeps(recordingClient()));
+  assert.equal(summary.error, null);
+});
