@@ -60,6 +60,7 @@ module.exports = {
       infrastructure: "Infrastruktur",
       network_change: "Nettendring",
       major_disruption: "Større avbrot",
+      rolling_stock: "Nytt materiell",
       other: "Anna",
     },
     country: {

@@ -184,6 +184,11 @@ test("Nynorsk labels with a space or a non-ASCII letter become CamelCase tags", 
   assert.deepEqual(toot.hashtags, ["Linjeskift", "StørreAvbrot", "Storbritannia"]);
 });
 
+test("rolling_stock, added in linjeskift 1.5.0, gets its Nynorsk tag", () => {
+  const toot = lsToot({ category: "rolling_stock", country: "NO" });
+  assert.deepEqual(toot.hashtags, ["Linjeskift", "NyttMateriell", "Noreg"]);
+});
+
 test("a country of 'other' and a missing snippet leave no stray tag or blank paragraph", () => {
   const toot = lsToot({ country: "other", raw_summary: null });
   assert.deepEqual(toot.hashtags, ["Linjeskift", "Nattog"]);
