@@ -56,6 +56,28 @@ Caddy service to this repo. To change routing or the domain, edit that repo.
 authoritative, live answers. The static reference lives in `mmsge/naustet-server`
 (`Caddyfile` = the port map; `services/mastobots-skvip-lol.md` = this service's doc).
 
+## Openness: robots.txt and licences come first
+
+Markus's standing rule for every robot in this house, current and future
+(ADR 0013):
+
+- **Follow `robots.txt`.** Read the source's `robots.txt` before designing a
+  robot, and only fetch paths it allows for our User-Agent. If it disallows what
+  the robot needs, the robot is not built. A challenge page, a block or a rate
+  limit counts as a no too: do not route around it.
+- **Follow the licence.** Only take and post what the source's terms allow. An
+  API key's tier, a feed's terms and the copyright on text and images all count.
+  When the terms are unclear, find out and ask Markus before building. Do not
+  assume it is fine.
+- **Point at the work, don't copy it.** A toot carries the publisher's own
+  heading, short intro and link. Attaching or re-hosting the publisher's images
+  or full text needs an explicit licence or written permission, recorded in an
+  ADR.
+
+This is a principle, not a technicality. "It's technically reachable" or
+"scraping gets around the API terms" are never reasons to go ahead. ADR 0012
+(the Guardian comics robot that was dropped) is the worked example.
+
 ## Shape of the thing
 
 ```
